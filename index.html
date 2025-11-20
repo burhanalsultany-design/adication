@@ -1,0 +1,366 @@
+// تكوين الدراسة
+const studyConfig = {
+    smartphoneQuestions: [
+        "أُهمِل بعض الأعمال المخططة بسبب استخدامي للهاتف الذكي",
+        "أجد صعوبة في التركيز أثناء الدراسة أو المحاضرة بسبب استخدام الهاتف",
+        "أشعر بألم في المعصم أو الرقبة أثناء استخدام الهاتف",
+        "أشعر بالتوتر عندما لا أكون ممسكًا بالهاتف",
+        "أفكر في الهاتف حتى عندما لا أستخدمه",
+        "أقضي وقتًا أطول مما خططت له في استخدام الهاتف",
+        "يخبرني من حولي أنني أستخدم الهاتف كثيرًا",
+        "أستخدم الهاتف لفترة أطول مما كنت أنوي",
+        "أستخدم الهاتف للهروب من المشاعر السلبية أو الواقع",
+        "أشعر بالقلق عندما أكون بدون الهاتف"
+    ],
+    
+    sleepQuestions: [
+        {
+            type: "quality",
+            question: "خلال الشهر الماضي، كيف تُقيّم جودة نومك بشكل عام؟",
+            options: ["ممتاز", "جيد", "سيئ", "سيئ جدًا"]
+        },
+        {
+            type: "latency_minutes",
+            question: "كم دقيقة يستغرقك عادةً لتغفو كل ليلة؟",
+            inputType: "number",
+            placeholder: "أدخل عدد الدقائق"
+        },
+        {
+            type: "latency_frequency",
+            question: "كم مرة واجهت صعوبة في النوم خلال 30 دقيقة من الاستلقاء؟",
+            options: ["لم يحدث", "أقل من مرة أسبوعيًا", "مرة أو مرتين أسبوعيًا", "ثلاث مرات أو أكثر أسبوعيًا"]
+        },
+        {
+            type: "duration",
+            question: "كم عدد ساعات النوم الفعلية التي تحصل عليها في الليلة (بالمتوسط)؟",
+            inputType: "number",
+            placeholder: "أدخل عدد الساعات",
+            step: "0.5",
+            min: "0",
+            max: "24"
+        },
+        {
+            type: "bedtime",
+            question: "في أي وقت عادةً تذهب إلى السرير؟",
+            inputType: "time"
+        },
+        {
+            type: "waketime",
+            question: "وفي أي وقت عادةً تستيقظ صباحًا؟",
+            inputType: "time"
+        }
+    ],
+    
+    sleepDisturbances: [
+        "الاستيقاظ أثناء الليل أو في الصباح الباكر",
+        "الحاجة لاستخدام الحمام",
+        "صعوبة في التنفس",
+        "السعال أو الشخير",
+        "الشعور بالبرد أو الحر الشديد",
+        "الأحلام المزعجة",
+        "الألم"
+    ]
+};
+
+// حالة التطبيق
+let currentSection = 1;
+const formData = {};
+
+// تهيئة التطبيق
+document.addEventListener('DOMContentLoaded', function() {
+    initializeSmartphoneQuestions();
+    initializeSleepQuestions();
+    updateProgress();
+    
+    document.getElementById('nextBtn').addEventListener('click', nextSection);
+    document.getElementById('researchForm').addEventListener('submit', submitForm);
+});
+
+// تهيئة أسئلة الهاتف الذكي
+function initializeSmartphoneQuestions() {
+    const container = document.getElementById('smartphoneQuestions');
+    
+    studyConfig.smartphoneQuestions.forEach((question, index) => {
+        const questionGroup = document.createElement('div');
+        questionGroup.className = 'question-group';
+        
+        questionGroup.innerHTML = `
+            <div class="question-text">${index + 1}. ${question}</div>
+            <div class="likert-scale" id="likert-${index}">
+                <div class="likert-option" data-value="1">1</div>
+                <div class="likert-option" data-value="2">2</div>
+                <div class="likert-option" data-value="3">3</div>
+                <div class="likert-option" data-value="4">4</div>
+                <div class="likert-option" data-value="5">5</div>
+            </div>
+        `;
+        
+        container.appendChild(questionGroup);
+        
+        // إضافة event listeners لمقاييس ليكرت
+        const options = questionGroup.querySelectorAll('.likert-option');
+        options.forEach(option => {
+            option.addEventListener('click', function() {
+                // إزالة التحديد من جميع الخيارات في هذه المجموعة
+                options.forEach(opt => opt.classList.remove('selected'));
+                // تحديد الخيار المختار
+                this.classList.add('selected');
+                // حفظ القيمة
+                formData[`smartphone_q${index + 1}`] = parseInt(this.dataset.value);
+            });
+        });
+    });
+}
+
+// تهيئة أسئلة النوم
+function initializeSleepQuestions() {
+    const container = document.getElementById('sleepQuestions');
+    
+    // الأسئلة الأساسية
+    studyConfig.sleepQuestions.forEach((item, index) => {
+        const questionGroup = document.createElement('div');
+        questionGroup.className = 'question-group';
+        
+        let inputHTML = '';
+        
+        if (item.options) {
+            inputHTML = `
+                <select id="sleep_${item.type}" name="sleep_${item.type}" required>
+                    <option value="">اختر الإجابة</option>
+                    ${item.options.map((option, i) => 
+                        `<option value="${i}">${option}</option>`
+                    ).join('')}
+                </select>
+            `;
+        } else if (item.inputType === 'time') {
+            inputHTML = `<input type="time" id="sleep_${item.type}" name="sleep_${item.type}" required>`;
+        } else {
+            inputHTML = `
+                <input type="${item.inputType}" 
+                       id="sleep_${item.type}" 
+                       name="sleep_${item.type}" 
+                       ${item.step ? `step="${item.step}"` : ''}
+                       ${item.min ? `min="${item.min}"` : ''}
+                       ${item.max ? `max="${item.max}"` : ''}
+                       ${item.placeholder ? `placeholder="${item.placeholder}"` : ''}
+                       required>
+            `;
+        }
+        
+        questionGroup.innerHTML = `
+            <div class="question-text">${item.question}</div>
+            ${inputHTML}
+        `;
+        
+        container.appendChild(questionGroup);
+    });
+    
+    // اضطرابات النوم
+    const disturbancesGroup = document.createElement('div');
+    disturbancesGroup.className = 'question-group';
+    disturbancesGroup.innerHTML = `
+        <div class="question-text">خلال الشهر الماضي، كم مرة واجهت مشاكل في النوم بسبب:</div>
+    `;
+    
+    studyConfig.sleepDisturbances.forEach((disturbance, index) => {
+        const disturbanceHTML = `
+            <div style="margin-bottom: 15px;">
+                <div style="margin-bottom: 8px; font-weight: 500;">${disturbance}</div>
+                <select id="disturbance_${index}" name="disturbance_${index}" required>
+                    <option value="">اختر التكرار</option>
+                    <option value="0">لم يحدث</option>
+                    <option value="1">أقل من مرة أسبوعيًا</option>
+                    <option value="2">مرة أو مرتين أسبوعيًا</option>
+                    <option value="3">ثلاث مرات أو أكثر أسبوعيًا</option>
+                </select>
+            </div>
+        `;
+        disturbancesGroup.innerHTML += disturbanceHTML;
+    });
+    
+    container.appendChild(disturbancesGroup);
+    
+    // أسئلة إضافية
+    const additionalQuestions = [
+        {
+            id: 'medication',
+            question: 'خلال الشهر الماضي، كم مرة تناولت دواءً (بوصفة أو دون وصفة) لمساعدتك على النوم؟',
+            options: ['لم يحدث', 'أقل من مرة أسبوعيًا', 'مرة أو مرتين أسبوعيًا', 'ثلاث مرات أو أكثر أسبوعيًا']
+        },
+        {
+            id: 'daytime_sleepiness',
+            question: 'كم مرة واجهت صعوبة في البقاء مستيقظًا أثناء القيادة أو الأكل أو النشاطات الاجتماعية؟',
+            options: ['لم يحدث', 'أقل من مرة أسبوعيًا', 'مرة أو مرتين أسبوعيًا', 'ثلاث مرات أو أكثر أسبوعيًا']
+        },
+        {
+            id: 'enthusiasm',
+            question: 'إلى أي مدى كانت لديك مشكلة في الحفاظ على الحماس لإنجاز الأمور؟',
+            options: ['لا مشكلة', 'مشكلة بسيطة', 'مشكلة متوسطة', 'مشكلة كبيرة جدًا']
+        }
+    ];
+    
+    additionalQuestions.forEach(item => {
+        const questionGroup = document.createElement('div');
+        questionGroup.className = 'question-group';
+        
+        questionGroup.innerHTML = `
+            <div class="question-text">${item.question}</div>
+            <select id="sleep_${item.id}" name="sleep_${item.id}" required>
+                <option value="">اختر الإجابة</option>
+                ${item.options.map((option, i) => 
+                    `<option value="${i}">${option}</option>`
+                ).join('')}
+            </select>
+        `;
+        
+        container.appendChild(questionGroup);
+    });
+}
+
+// الانتقال للقسم التالي
+function nextSection() {
+    if (!validateCurrentSection()) {
+        showMessage('يرجى الإجابة على جميع الأسئلة المطلوبة في هذا القسم', 'error');
+        return;
+    }
+    
+    // إخفاء القسم الحالي
+    document.getElementById(`section${currentSection}`).style.display = 'none';
+    currentSection++;
+    
+    if (currentSection <= 3) {
+        // إظهار القسم التالي
+        document.getElementById(`section${currentSection}`).style.display = 'block';
+        updateProgress();
+        
+        if (currentSection === 3) {
+            document.getElementById('nextBtn').style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'block';
+        }
+    }
+}
+
+// التحقق من صحة القسم الحالي
+function validateCurrentSection() {
+    if (currentSection === 1) {
+        const gender = document.getElementById('gender').value;
+        const age = document.getElementById('age').value;
+        const major = document.getElementById('major').value;
+        const year = document.getElementById('year').value;
+        
+        if (!gender || !age || !major || !year) {
+            return false;
+        }
+        
+        // حفظ البيانات
+        formData.gender = gender;
+        formData.age = age;
+        formData.major = major;
+        formData.year = year;
+        
+    } else if (currentSection === 2) {
+        // التحقق من إجابات أسئلة الهاتف
+        for (let i = 0; i < studyConfig.smartphoneQuestions.length; i++) {
+            if (typeof formData[`smartphone_q${i + 1}`] === 'undefined') {
+                return false;
+            }
+        }
+    }
+    
+    return true;
+}
+
+// تحديث شريط التقدم
+function updateProgress() {
+    const progress = (currentSection / 3) * 100;
+    document.getElementById('progressBar').style.width = `${progress}%`;
+}
+
+// إظهار الرسائل
+function showMessage(message, type) {
+    const messageDiv = document.getElementById('formMessage');
+    messageDiv.textContent = message;
+    messageDiv.className = `message ${type}`;
+    messageDiv.style.display = 'block';
+    
+    setTimeout(() => {
+        messageDiv.style.display = 'none';
+    }, 5000);
+}
+
+// إرسال النموذج
+async function submitForm(e) {
+    e.preventDefault();
+    
+    if (!validateCurrentSection()) {
+        showMessage('يرجى الإجابة على جميع الأسئلة المطلوبة', 'error');
+        return;
+    }
+    
+    // جمع بيانات النوم
+    collectSleepData();
+    
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = 'جاري الإرسال...';
+    
+    try {
+        // رابط Google Apps Script الخاص بجمع البيانات
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxY3hqUdNCnGz6N0_b1KHlQVJCXmlSNCtEMpNJvOo1MhoozlVaR2HE7wyao_EctK3M/exec';
+        
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify(formData),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.result === 'success') {
+            showMessage('شكراً لك! تم إرسال بياناتك بنجاح. نقدر مساهمتك في البحث العلمي.', 'success');
+            document.getElementById('researchForm').reset();
+            // إعادة تعيين النموذج
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+        } else {
+            throw new Error(result.message);
+        }
+        
+    } catch (error) {
+        console.error('Error:', error);
+        showMessage('عذراً! حدث خطأ في الإرسال. يرجى المحاولة مرة أخرى.', 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'إرسال البيانات';
+    }
+}
+
+// جمع بيانات النوم
+function collectSleepData() {
+    // جمع البيانات من حقول النوم
+    studyConfig.sleepQuestions.forEach(item => {
+        const element = document.getElementById(`sleep_${item.type}`);
+        if (element) {
+            formData[`sleep_${item.type}`] = element.value;
+        }
+    });
+    
+    // جمع بيانات اضطرابات النوم
+    studyConfig.sleepDisturbances.forEach((_, index) => {
+        const element = document.getElementById(`disturbance_${index}`);
+        if (element) {
+            formData[`disturbance_${index}`] = element.value;
+        }
+    });
+    
+    // جمع البيانات الإضافية
+    ['medication', 'daytime_sleepiness', 'enthusiasm'].forEach(id => {
+        const element = document.getElementById(`sleep_${id}`);
+        if (element) {
+            formData[`sleep_${id}`] = element.value;
+        }
+    });
+}
